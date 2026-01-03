@@ -25,10 +25,10 @@ enum Commands {
         /// Path to directory or file to index
         path: String,
         /// Database file path (default: ./.local_search.db)
-        #[clap(long, default_value = "./.local_search.db")]
+        #[clap(long, default_value = "./.local_search.db", help = "Path to the SQLite database file.")]
         db: String,
-        /// File type filter: json, text, or auto
-        #[clap(long, default_value = "json")]
+        /// File type filter: json, text
+        #[clap(long, default_value = "json", help = "Type of files to ingest: 'json' for JSON files, 'text' for raw text files. json is expected to contain [{\"path\": \"unique_str\", \"content\": \"document content\", \"metadata\": {\"key\": \"value\"}}].")]
         file_type: String,
     },
     /// Search indexed documents
@@ -36,16 +36,16 @@ enum Commands {
         /// Search query
         query: String,
         /// Database file path (default: ./.local_search.db)
-        #[clap(long, default_value = "./.local_search.db")]
+        #[clap(long, default_value = "./.local_search.db", help = "Path to the SQLite database file that was indexed.")]
         db: String,
         /// Search type: fulltext, semantic, or hybrid
-        #[clap(long, default_value = "hybrid")]
+        #[clap(long, default_value = "hybrid", help = "Type of search to perform: 'fulltext' for traditional text search, 'semantic' for embedding-based search, or 'hybrid' for a combination of both.")]
         search_type: String,
         /// Maximum number of results to return
-        #[clap(long, default_value = "10")]
+        #[clap(long, default_value = "10", help = "Maximum number of search results to return.")]
         limit: usize,
         /// Output results as JSON instead of formatted text
-        #[clap(long)]
+        #[clap(long, help = "Output search results in JSON format.")]
         json: bool,
     },
 }

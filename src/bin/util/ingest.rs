@@ -54,9 +54,8 @@ impl JsonFileIngestor {
         let data = std::fs::read_to_string(file_path)?;
         let doc_requests: Vec<DocumentRequest> = serde_json::from_str(&data)?;
         for doc_request in doc_requests {
-            let content = doc_request.content.clone();
             self.indexer.upsert_document(doc_request)?;
-            info!("Indexed document from file: {:?} -- content: {}", file_path, content);
+            info!("Indexed document from file: {:?}", file_path);
         }
         Ok(())
     }
@@ -111,11 +110,11 @@ impl RawFileIngestor {
         let content = std::fs::read_to_string(file_path)?;
         let doc_request = DocumentRequest {
             path: file_path.to_string_lossy().to_string(),
-            content: content.clone(),
+            content: content,
             metadata: None,
         };
         self.indexer.upsert_document(doc_request)?;
-        info!("Indexed document from file: {:?} -- content: {}", file_path, content);
+        info!("Indexed document from file: {:?}", file_path);
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use local_search_engine::LocalEmbedder;
+use local_search::LocalEmbedder;
 
 
 #[test]
