@@ -1,5 +1,5 @@
 [package]
-name = "local_search_engine"
+name = "local_search"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,12 +7,29 @@ edition = "2024"
 env_logger = "0.11.8"
 log = "0.4.29"
 rusqlite = {"version" = "0.38.0", features = ["bundled"]}
-llm = "1.3.6"
 fastembed = "4.1.0"
 anyhow = "1.0.100"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+
+# CLI-only dependencies (optional)
+clap = { version = "4.5.54", features = ["derive"], optional = true }
+colored = { version = "3.0.0", optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[features]
+default = []
+cli = ["clap", "colored", "serde", "serde_json"]
 
 [lib]
-name = "local_search_engine"
+name = "local_search"
 path = "src/lib.rs"
+
+
+[[bin]]
+name = "local_search"
+path = "src/bin/main.rs"
+required-features = ["cli"]

@@ -8,6 +8,3 @@ pub use embed::LocalEmbedder;
 
 pub mod engines;
 pub use engines::SqliteLocalSearchEngine;
-
-pub mod ingest;
-pub use ingest::JsonFileIngestor;
