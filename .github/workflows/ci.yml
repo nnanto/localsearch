@@ -79,45 +79,27 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-gnu
             binary-suffix: ''
             archive-name: local-search-linux-x86_64.tar.gz
-            use-cross: false
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary-suffix: .exe
             archive-name: local-search-windows-x86_64.zip
-            use-cross: false
           - os: macos-latest
             target: x86_64-apple-darwin
             binary-suffix: ''
             archive-name: local-search-macos-x86_64.tar.gz
-            use-cross: false
           - os: macos-latest
             target: aarch64-apple-darwin
             binary-suffix: ''
             archive-name: local-search-macos-aarch64.tar.gz
-            use-cross: false
     steps:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
       with:
         targets: ${{ matrix.target }}
     - uses: Swatinem/rust-cache@v2
-    
-    # Install musl-tools for Linux static builds
-    - name: Install musl tools
-      if: matrix.target == 'x86_64-unknown-linux-musl'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y musl-tools musl-dev
-        
-    # Set environment variables for static linking
-    - name: Configure static linking (Linux)
-      if: matrix.target == 'x86_64-unknown-linux-musl'
-      run: |
-        echo "CC_x86_64_unknown_linux_musl=musl-gcc" >> $GITHUB_ENV
-        echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_ENV
     
     - name: Build binary
       run: cargo build --release --features cli --target ${{ matrix.target }}
@@ -191,7 +173,7 @@ jobs:
         body: |
           ## Installation Instructions
 
-          ### Linux (x86_64) - Static Binary
+          ### Linux (x86_64)
           ```bash
           curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-linux-x86_64.tar.gz | tar xz
           sudo mv local-search /usr/local/bin/
@@ -218,8 +200,6 @@ jobs:
           ```bash
           local-search --help
           ```
-
-          **Note**: The Linux binary is now statically compiled and should work on all Linux distributions without additional dependencies.
           
     - name: Update latest release
       uses: softprops/action-gh-release@v2
@@ -236,7 +216,7 @@ jobs:
         body: |
           ## Installation Instructions
 
-          ### Linux (x86_64) - Static Binary
+          ### Linux (x86_64)
           ```bash
           curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-linux-x86_64.tar.gz | tar xz
           sudo mv local-search /usr/local/bin/
@@ -263,5 +243,3 @@ jobs:
           ```bash
           local-search --help
           ```
-
-          **Note**: The Linux binary is now statically compiled and should work on all Linux distributions without additional dependencies.
