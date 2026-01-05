@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 
 # Default values
 INSTALL_DIR="/usr/local/bin"
-GITHUB_REPO="nnanto/local_search"
+GITHUB_REPO="nnanto/local-search"
 
 # Function to print colored output
 print_status() {
@@ -58,7 +58,7 @@ command_exists() {
 }
 
 # Main installation function
-install_local_search() {
+install_local-search() {
     local arch=$(get_architecture)
     local archive_name="local-search-${arch}.tar.gz"
     local download_url="https://github.com/${GITHUB_REPO}/releases/latest/download/${archive_name}"
@@ -136,7 +136,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --install-dir DIR    Installation directory (default: /usr/local/bin)"
-            echo "  --repo REPO          GitHub repository (default: nnanto/local_search)"
+            echo "  --repo REPO          GitHub repository (default: nnanto/local-search)"
             echo "  -h, --help           Show this help message"
             exit 0
             ;;
@@ -148,4 +148,4 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Run installation
-install_local_search
+install_local-search
