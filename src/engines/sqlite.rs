@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub struct SqliteLocalSearchEngine {
     db_path: String,
     conn: Connection,
-    embedder: LocalEmbedder,
+    embedder: Option<LocalEmbedder>,
 }
 
 impl SqliteLocalSearchEngine {
@@ -16,7 +16,6 @@ impl SqliteLocalSearchEngine {
         info!("Creating new SqliteLocalSearch for path: {}", db_path);
         let conn =
             Connection::open(db_path).map_err(|e| anyhow!("Failed to open database: {}", e))?;
-        let embedder = embedder.unwrap_or_else(|| LocalEmbedder::new_with_default_model().unwrap());
         let lfts = SqliteLocalSearchEngine {
             db_path: db_path.to_string(),
             conn,
@@ -53,7 +52,7 @@ impl SqliteLocalSearchEngine {
         )?;
         debug!("Created documents_fts FTS5 virtual table.");
 
-        // Create embeddings table
+        // Create embeddings table only if embedder is available
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS document_embeddings (
                 path TEXT PRIMARY KEY,
@@ -76,17 +75,12 @@ impl SqliteLocalSearchEngine {
         Ok(())
     }
 
-    /// Returns the total number of documents currently indexed in the database.
-    pub fn stats(&self) -> anyhow::Result<i64> {
-        let count: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
-        info!("Total documents indexed: {}", count);
-        Ok(count)
-    }
-
     fn search_semantic_only(&self, query: &str) -> anyhow::Result<Vec<SearchResult>> {
-        let query_embedding = self.embedder.embed_text(query)?;
+        let embedder = self
+            .embedder
+            .as_ref()
+            .ok_or_else(|| anyhow!("Semantic search requires an embedder"))?;
+        let query_embedding = embedder.embed_text(query)?;
         let semantic_results = self.search_by_embedding(&query_embedding)?;
         let results = semantic_results
             .into_iter()
@@ -104,11 +98,17 @@ impl SqliteLocalSearchEngine {
     }
 
     fn search_hybrid(&self, query: &str) -> anyhow::Result<Vec<SearchResult>> {
+        // If no embedder, fallback to FTS-only search
+        if self.embedder.is_none() {
+            debug!("No embedder available for hybrid search, falling back to FTS-only");
+            return self.search_fulltext_only(query);
+        }
+
         // Get FTS results
         let fts_results = self.search_fts(query).unwrap_or_default();
 
         // Get semantic results
-        let query_embedding = self.embedder.embed_text(query)?;
+        let query_embedding = self.embedder.as_ref().unwrap().embed_text(query)?;
         let semantic_results = self
             .search_by_embedding(&query_embedding)
             .unwrap_or_default();
@@ -328,19 +328,21 @@ impl DocumentIndexer for SqliteLocalSearchEngine {
             request.path, rows_affected
         );
 
-        // Generate and store embedding
-        let embedding = self.embedder.embed_text(&request.content)?;
-        let embedding_bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
-        self.conn
-            .execute(
-                "INSERT INTO document_embeddings (path, embedding) VALUES (?1, ?2)",
-                rusqlite::params![request.path, embedding_bytes],
-            )
-            .map_err(|e| anyhow!("Failed to insert embedding: {}", e))?;
-        debug!(
-            "Inserted embedding for document with path: {}",
-            request.path
-        );
+        // Generate and store embedding if embedder is available
+        if let Some(ref embedder) = self.embedder {
+            let embedding = embedder.embed_text(&request.content)?;
+            let embedding_bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+            self.conn
+                .execute(
+                    "INSERT INTO document_embeddings (path, embedding) VALUES (?1, ?2)",
+                    rusqlite::params![request.path, embedding_bytes],
+                )
+                .map_err(|e| anyhow!("Failed to insert embedding: {}", e))?;
+            debug!(
+                "Inserted embedding for document with path: {}",
+                request.path
+            );
+        }
 
         // Insert into FTS table for search
         self.conn
@@ -387,16 +389,19 @@ impl DocumentIndexer for SqliteLocalSearchEngine {
                 request.path, rows_affected
             );
 
-            // Update embedding
-            let embedding = self.embedder.embed_text(&request.content)?;
-            let embedding_bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
-            self.conn
-                .execute(
-                    "UPDATE document_embeddings SET embedding = ?1 WHERE path = ?2",
-                    rusqlite::params![embedding_bytes, request.path],
-                )
-                .map_err(|e| anyhow!("Failed to update embedding: {}", e))?;
-            debug!("Updated embedding for document with path: {}", request.path);
+            // Update embedding if embedder is available
+            if let Some(ref embedder) = self.embedder {
+                let embedding = embedder.embed_text(&request.content)?;
+                let embedding_bytes: Vec<u8> =
+                    embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+                self.conn
+                    .execute(
+                        "UPDATE document_embeddings SET embedding = ?1 WHERE path = ?2",
+                        rusqlite::params![embedding_bytes, request.path],
+                    )
+                    .map_err(|e| anyhow!("Failed to update embedding: {}", e))?;
+                debug!("Updated embedding for document with path: {}", request.path);
+            }
 
             // Update FTS table
             self.conn
@@ -413,13 +418,15 @@ impl DocumentIndexer for SqliteLocalSearchEngine {
     /// Removes a document and its associated embeddings and FTS entries by path.
     fn delete_document(&self, path: &str) -> anyhow::Result<()> {
         // Delete from child tables first to avoid foreign key constraint violations
-        self.conn
-            .execute(
-                "DELETE FROM document_embeddings WHERE path = ?1",
-                rusqlite::params![path],
-            )
-            .map_err(|e| anyhow!("Failed to delete embedding: {}", e))?;
-        debug!("Deleted embedding for document with path: {}", path);
+        if self.embedder.is_some() {
+            self.conn
+                .execute(
+                    "DELETE FROM document_embeddings WHERE path = ?1",
+                    rusqlite::params![path],
+                )
+                .map_err(|e| anyhow!("Failed to delete embedding: {}", e))?;
+            debug!("Deleted embedding for document with path: {}", path);
+        }
 
         self.conn
             .execute(
@@ -457,6 +464,15 @@ impl DocumentIndexer for SqliteLocalSearchEngine {
         info!("Database connection refreshed for path: {:?}", self.db_path);
         Ok(())
     }
+
+    /// Returns the total number of documents currently indexed in the database.
+    fn stats(&self) -> anyhow::Result<i64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
+        info!("Total documents indexed: {}", count);
+        Ok(count)
+    }
 }
 
 impl LocalSearch for SqliteLocalSearchEngine {
@@ -469,7 +485,12 @@ impl LocalSearch for SqliteLocalSearchEngine {
     ) -> anyhow::Result<Vec<SearchResult>> {
         let res = match search_type {
             SearchType::FullText => self.search_fulltext_only(query),
-            SearchType::Semantic => self.search_semantic_only(query),
+            SearchType::Semantic => {
+                if self.embedder.is_none() {
+                    return Err(anyhow!("Semantic search requires an embedder"));
+                }
+                self.search_semantic_only(query)
+            }
             SearchType::Hybrid => self.search_hybrid(query),
         }?;
         let limit = std::cmp::min(top.unwrap_or(10) as usize, res.len());
@@ -492,6 +513,16 @@ mod tests {
         (engine, temp_dir)
     }
 
+    fn create_test_engine_with_embedder() -> (SqliteLocalSearchEngine, TempDir) {
+        let temp_dir = TempDir::new().expect("Failed to create temp directory");
+        let db_path = temp_dir.path().join("test.db");
+        let embedder = LocalEmbedder::new_with_default_model().expect("Failed to create embedder");
+        let engine = SqliteLocalSearchEngine::new(db_path.to_str().unwrap(), Some(embedder))
+            .expect("Failed to create test engine");
+        engine.create_table().expect("Failed to create tables");
+        (engine, temp_dir)
+    }
+
     fn create_test_document(path: &str, content: &str) -> DocumentRequest {
         let mut metadata = HashMap::new();
         metadata.insert("title".to_string(), format!("Test Document {}", path));
@@ -505,6 +536,7 @@ mod tests {
     }
 
     #[test]
+
     fn test_engine_initialization() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
@@ -597,8 +629,9 @@ mod tests {
     }
 
     #[test]
+
     fn test_semantic_search() {
-        let (engine, _temp_dir) = create_test_engine();
+        let (engine, _temp_dir) = create_test_engine_with_embedder();
 
         // Insert test documents with different but semantically related content
         let docs = vec![
@@ -628,8 +661,9 @@ mod tests {
     }
 
     #[test]
+
     fn test_hybrid_search() {
-        let (engine, _temp_dir) = create_test_engine();
+        let (engine, _temp_dir) = create_test_engine_with_embedder();
 
         // Insert test documents
         let docs = vec![
@@ -696,6 +730,7 @@ mod tests {
     }
 
     #[test]
+
     fn test_refresh_connection() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
@@ -755,18 +790,35 @@ mod tests {
     fn test_search_no_results() {
         let (engine, _temp_dir) = create_test_engine();
 
-        // Search empty database
+        // Search empty database - FTS should work without embedder
         let results = engine
             .search("nonexistent query", SearchType::FullText, Some(10))
             .unwrap();
         assert!(results.is_empty());
 
+        // Semantic search should fail without embedder
+        let semantic_result = engine.search("nonexistent query", SearchType::Semantic, Some(10));
+        assert!(semantic_result.is_err());
+
+        // Hybrid should fallback to FTS without embedder
         let results = engine
+            .search("nonexistent query", SearchType::Hybrid, Some(10))
+            .unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+
+    fn test_no_search_result_embedder() {
+        // Test with embedder engine
+        let (engine_with_embedder, _temp_dir2) = create_test_engine_with_embedder();
+
+        let results = engine_with_embedder
             .search("nonexistent query", SearchType::Semantic, Some(10))
             .unwrap();
         assert!(results.is_empty());
 
-        let results = engine
+        let results = engine_with_embedder
             .search("nonexistent query", SearchType::Hybrid, Some(10))
             .unwrap();
         assert!(results.is_empty());

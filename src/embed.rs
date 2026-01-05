@@ -29,18 +29,18 @@ impl LocalEmbedder {
         embeddings
             .into_iter()
             .next()
-            .map(|x| self.normalize_l2(&x))
+            .map(|x| Self::normalize_l2(&x))
             .ok_or_else(|| anyhow::anyhow!("Failed to get embedding"))
     }
 
     /// Embeds multiple text strings and returns normalized vectors.
     pub fn embed_batch(&self, texts: Vec<&str>) -> Result<Vec<Vec<f32>>> {
         let embeddings = self.model.embed(texts, None)?;
-        Ok(embeddings.iter().map(|e| self.normalize_l2(e)).collect())
+        Ok(embeddings.iter().map(|e| Self::normalize_l2(e)).collect())
     }
 
     /// Normalizes an embedding vector using L2 normalization.
-    pub fn normalize_l2(&self, embedding: &[f32]) -> Vec<f32> {
+    pub fn normalize_l2(embedding: &[f32]) -> Vec<f32> {
         let norm = (embedding.iter().map(|x| x * x).sum::<f32>()).sqrt();
         debug!("Normalized embedding with L2 norm: {}", norm);
         if norm < 1e-5 || (norm - 1.0).abs() < 1e-5 {
@@ -61,16 +61,15 @@ mod tests {
 
     #[test]
     fn test_normalize_l2_small_norm() {
-        let embedder = LocalEmbedder::new(None).unwrap();
         let input: Vec<f32> = vec![0.1, 0.2, 0.3];
 
-        let result = embedder.normalize_l2(&input);
+        let result = LocalEmbedder::normalize_l2(&input);
         assert_ne!(result, input)
     }
 
     #[test]
     fn test_embed_text_returns_vector() {
-        let embedder = LocalEmbedder::new(None).expect("Failed to create embedder");
+        let embedder = LocalEmbedder::new_with_default_model().expect("Failed to create embedder");
         let text = "Hello world";
 
         let result = embedder.embed_text(text);
@@ -78,7 +77,6 @@ mod tests {
 
         let embedding = result.unwrap();
         assert!(!embedding.is_empty());
-        assert!(embedding.len() > 0);
     }
 
     #[test]

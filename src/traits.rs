@@ -33,6 +33,7 @@ pub trait DocumentIndexer {
     fn insert_document(&self, request: DocumentRequest) -> anyhow::Result<()>;
     fn upsert_document(&self, request: DocumentRequest) -> anyhow::Result<()>;
     fn delete_document(&self, path: &str) -> anyhow::Result<()>;
+    fn stats(&self) -> anyhow::Result<i64>;
     fn refresh(&mut self) -> anyhow::Result<()>;
 }
 

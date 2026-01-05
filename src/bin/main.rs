@@ -1,33 +1,30 @@
-#[cfg(feature = "cli")]
 mod util;
-#[cfg(feature = "cli")]
+
 use clap::{Parser, Subcommand};
-#[cfg(feature = "cli")]
-use colored::*;
-#[cfg(feature = "cli")]
-use local_search::{LocalEmbedder, LocalSearch, SearchType, SqliteLocalSearchEngine};
-#[cfg(feature = "cli")]
+use localsearch::{LocalEmbedder, LocalSearch, SearchType, SqliteLocalSearchEngine};
 use util::{JsonFileIngestor, RawFileIngestor};
 
-#[cfg(feature = "cli")]
+use crate::util::ingest::IngestionResult;
+
 #[derive(Parser)]
 #[command(name = "local-search")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    #[clap(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
 }
 
-#[cfg(feature = "cli")]
 #[derive(Subcommand)]
 enum Commands {
     /// Index documents from a directory or file
     Index {
         /// Path to directory or file to index
         path: String,
-        /// Database file path (default: ./.local_search.db)
+        /// Database file path (default: ./.localsearch.db)
         #[clap(
             long,
-            default_value = "./.local_search.db",
+            default_value = "./.localsearch.db",
             help = "Path to the SQLite database file."
         )]
         db: String,
@@ -43,10 +40,10 @@ enum Commands {
     Search {
         /// Search query
         query: String,
-        /// Database file path (default: ./.local_search.db)
+        /// Database file path (default: ./.localsearch.db)
         #[clap(
             long,
-            default_value = "./.local_search.db",
+            default_value = "./.localsearch.db",
             help = "Path to the SQLite database file that was indexed."
         )]
         db: String,
@@ -64,9 +61,12 @@ enum Commands {
             help = "Maximum number of search results to return."
         )]
         limit: usize,
-        /// Output results as JSON instead of formatted text
-        #[clap(long, help = "Output search results in JSON format.")]
-        json: bool,
+        /// Output results as pretty format instead of json text
+        #[clap(
+            long,
+            help = "Output search results in pretty format instead of json text."
+        )]
+        pretty: bool,
     },
 }
 
@@ -80,10 +80,11 @@ fn validate_db_presence(db_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "cli")]
 fn main() -> anyhow::Result<()> {
-    env_logger::init();
     let cli = Cli::parse();
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.log_level_filter())
+        .init();
 
     match cli.command {
         Commands::Index {
@@ -91,22 +92,25 @@ fn main() -> anyhow::Result<()> {
             db,
             file_type,
         } => {
-            println!("{} Indexing documents from: {}", "📚".green(), path);
+            println!(
+                "Indexing documents from: {} and storing in database: {}",
+                path, db
+            );
 
             // Initialize the search engine
             let embedder = LocalEmbedder::new_with_default_model()?;
             let engine = SqliteLocalSearchEngine::new(&db, Some(embedder))?;
             engine.create_table()?;
+            let boxed_engine = Box::new(engine);
 
             // Choose the appropriate ingestor based on file type
-            match file_type.as_str() {
+            let ingestion_result: IngestionResult = match file_type.as_str() {
                 "json" => {
-                    let ingestor = JsonFileIngestor::new(Box::new(engine));
-                    ingestor.ingest(&path)?;
+                    let ingestor = JsonFileIngestor::new(boxed_engine);
+                    ingestor.ingest(&path)?
                 }
                 "text" => {
-                    let engine_boxed = Box::new(engine);
-                    let ingestor = RawFileIngestor::new(engine_boxed);
+                    let ingestor = RawFileIngestor::new(boxed_engine);
                     ingestor.ingest(&path, |file_path| {
                         // Accept common text file extensions
                         if let Some(ext) = file_path.extension().and_then(|s| s.to_str()) {
@@ -128,28 +132,39 @@ fn main() -> anyhow::Result<()> {
                         } else {
                             false
                         }
-                    })?;
+                    })?
                 }
                 _ => {
                     // Return error for unsupported file types
-                    return Err(anyhow::anyhow!(
+                    println!(
                         "Unsupported file type: {}. Use 'json' or 'text'.",
                         file_type
-                    ));
+                    );
+                    IngestionResult::new()
                 }
-            }
+            };
 
-            println!("{} Indexing completed!", "✅".green());
+            if !ingestion_result.failed_files.is_empty() {
+                println!("Failed files:");
+                for file_path in &ingestion_result.failed_files {
+                    println!(" - {}", file_path);
+                }
+            } else {
+                println!(
+                    "Indexing completed! \nSuccessfully indexed {} file(s). Total documents in the database: {}",
+                    ingestion_result.indexed_count, ingestion_result.total_document_count
+                );
+            }
         }
         Commands::Search {
             query,
             db,
             search_type,
             limit,
-            json,
+            pretty,
         } => {
-            if !json {
-                println!("{} Searching for: \"{}\"", "🔍".blue(), query);
+            if pretty {
+                println!("Searching for: \"{}\"", query);
             }
             validate_db_presence(&db)?;
             // Initialize the search engine
@@ -160,13 +175,13 @@ fn main() -> anyhow::Result<()> {
             let search_type_enum = match search_type.as_str() {
                 "fulltext" | "fts" => SearchType::FullText,
                 "semantic" | "embedding" => SearchType::Semantic,
-                "hybrid" | _ => SearchType::Hybrid,
+                _ => SearchType::Hybrid,
             };
 
             // Perform search
             let results = engine.search(&query, search_type_enum, Some(limit as i8))?;
 
-            if json {
+            if !pretty {
                 // Output as JSON
                 let json_output = serde_json::json!({
                     "query": query,
@@ -187,35 +202,30 @@ fn main() -> anyhow::Result<()> {
             }
 
             if results.is_empty() {
-                println!("{} No results found.", "📭".yellow());
+                println!("No results found.");
                 return Ok(());
             }
 
-            println!("{} Found {} results:", "📋".blue(), results.len());
+            println!("Found {} results:", results.len());
             println!();
 
             // Display results (limited by the limit parameter)
             for (i, result) in results.iter().take(limit).enumerate() {
-                println!(
-                    "{} Result {} - Score: {:.4}",
-                    "🔸".cyan(),
-                    i + 1,
-                    result.final_score
-                );
-                println!("   📄 Path: {}", result.path.green());
+                println!("Result {} - Score: {:.4}", i + 1, result.final_score);
+                println!("   Path: {}", result.path);
 
                 if let Some(fts_score) = result.fts_score {
-                    println!("   📊 FTS Score: {:.4}", fts_score);
+                    println!("   FTS Score: {:.4}", fts_score);
                 }
 
                 if let Some(semantic_score) = result.semantic_score {
-                    println!("   🧠 Semantic Score: {:.4}", semantic_score);
+                    println!("   Semantic Score: {:.4}", semantic_score);
                 }
 
-                if let Some(ref metadata) = result.metadata {
-                    if !metadata.is_empty() {
-                        println!("   🏷️  Metadata: {:?}", metadata);
-                    }
+                if let Some(ref metadata) = result.metadata
+                    && !metadata.is_empty()
+                {
+                    println!("   Metadata: {:?}", metadata);
                 }
 
                 println!();

@@ -12,18 +12,22 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use local_search::{SqliteLocalSearchEngine, LocalEmbedder, DocumentIndexer, LocalSearch};
+//! use localsearch::{SqliteLocalSearchEngine, LocalEmbedder, DocumentIndexer, LocalSearch, SearchType, DocumentRequest};
 //!
 //! # fn main() -> anyhow::Result<()> {
 //! // Create embedder and search engine
-//! let embedder = LocalEmbedder::new()?;
-//! let mut engine = SqliteLocalSearchEngine::new("search.db", embedder)?;
+//! let embedder = LocalEmbedder::new_with_default_model()?;
+//! let mut engine = SqliteLocalSearchEngine::new("search.db", Some(embedder))?;
 //!
 //! // Index a document
-//! engine.index_document("example.txt", "This is example content")?;
+//! engine.insert_document(DocumentRequest {
+//!     path: "some/unique/path".to_string(),
+//!     content: "This is example content".to_string(),
+//!     metadata: None,
+//! })?;
 //!
 //! // Search
-//! let results = engine.search("example", 5)?;
+//! let results = engine.search("example", SearchType::Hybrid, Some(10))?;
 //! # Ok(())
 //! # }
 //! ```
