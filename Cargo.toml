@@ -1,6 +1,6 @@
 [package]
 name = "localsearch"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 authors = ["Naveen Anto <nnanto@github.com>"]
 description = "A fast, local search engine with vector embeddings and SQLite storage"
