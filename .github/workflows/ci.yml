@@ -211,9 +211,10 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Update latest release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: latest
+        token: ${{ secrets.GITHUB_TOKEN }}
         files: |
           artifacts/local-search-linux-x86_64.tar.gz/local-search-linux-x86_64.tar.gz
           artifacts/local-search-windows-x86_64.zip/local-search-windows-x86_64.zip
@@ -222,6 +223,32 @@ jobs:
         draft: false
         prerelease: false
         body: |
-          This is the latest release. It is automatically updated when a new version is tagged.
-          
-          For installation instructions, see the [latest tagged release](https://github.com/${{ github.repository }}/releases/latest).
+          ## Installation Instructions
+
+          ### Linux (x86_64)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-linux-x86_64.tar.gz | tar xz
+          sudo mv local-search /usr/local/bin/
+          ```
+
+          ### macOS (Intel)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-macos-x86_64.tar.gz | tar xz
+          sudo mv local-search /usr/local/bin/
+          ```
+
+          ### macOS (Apple Silicon)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-macos-aarch64.tar.gz | tar xz
+          sudo mv local-search /usr/local/bin/
+          ```
+
+          ### Windows
+          1. Download [local-search-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/latest/download/local-search-windows-x86_64.zip)
+          2. Extract the ZIP file
+          3. Add the extracted directory to your PATH environment variable
+
+          ### Verify Installation
+          ```bash
+          local-search --help
+          ```
