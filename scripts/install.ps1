@@ -1,14 +1,3 @@
-# Local Search Engine
-
-A fast, local search engine built in Rust with vector embeddings and SQLite storage.
-
-## Features
-
-- 🔍 Full-Text + Semantic Search using embeddings generated and stored locally
-- 📁 Local file indexing and search
-- 🗄️ SQLite-based storage
-- 📚 Both library and CLI interfaces
-
 # Installation Guide
 
 ## Quick Install
@@ -104,58 +93,11 @@ If the `local-search` command is not found after installation, make sure the ins
 - **Linux/macOS**: `/usr/local/bin` should be in your PATH
 - **Windows**: The installation directory should be added to your PATH environment variable
 
+### Download Issues
+If you're having trouble downloading the binary, you can:
+1. Check your internet connection
+2. Try downloading manually from the [releases page](https://github.com/nnanto/local_search/releases/latest)
+3. Use a VPN if you're in a region with restricted access
+
 ### Antivirus False Positives
 Some antivirus software may flag the binary as suspicious. This is a common issue with Rust binaries. You may need to add an exception for the local-search binary.
-
-# Usage
-
-## CLI Usage
-
-```bash
-# Index documents
-local-search index /path/to/documents
-
-# Search for content
-local-search search "your query here"
-```
-
-## Library Usage
-
-```rust
-use localsearch::{SqliteLocalSearchEngine, LocalEmbedder, DocumentIndexer, LocalSearch, SearchType, DocumentRequest};
-
-fn main() -> anyhow::Result<()> {
-    // Create embedder and search engine
-    let embedder = LocalEmbedder::new_with_default_model()?;
-    let mut engine = SqliteLocalSearchEngine::new("search.db", Some(embedder))?;
-
-    // Index a document
-    engine.insert_document(DocumentRequest {
-        path: "some/unique/path".to_string(),
-        content: "This is example content".to_string(),
-        metadata: None,
-    })?;
-
-    // Search
-    let results = engine.search("example", SearchType::Hybrid, Some(10))?;
-    Ok(())
-}
-```
-
-## Development
-
-```bash
-# Clone the repository
-git clone https://github.com/nnanto/local-search.git
-cd local-search
-
-# Run tests
-cargo test
-
-# Run CLI with features
-cargo run --features cli -- search "query"
-```
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.

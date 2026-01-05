@@ -66,16 +66,159 @@ jobs:
     - name: Build CLI
       run: cargo build --release --features cli
 
+  # New job for building release binaries
+  build-release-binaries:
+    name: Build Release Binaries
+    runs-on: ${{ matrix.os }}
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary-suffix: ''
+            archive-name: local-search-linux-x86_64.tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary-suffix: .exe
+            archive-name: local-search-windows-x86_64.zip
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary-suffix: ''
+            archive-name: local-search-macos-x86_64.tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary-suffix: ''
+            archive-name: local-search-macos-aarch64.tar.gz
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    - uses: Swatinem/rust-cache@v2
+    
+    - name: Build binary
+      run: cargo build --release --features cli --target ${{ matrix.target }}
+    
+    - name: Prepare binary (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        mkdir -p release
+        cp target/${{ matrix.target }}/release/local-search${{ matrix.binary-suffix }} release/
+        cp README.md release/
+        cp LICENSE release/
+        
+    - name: Prepare binary (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir release
+        copy "target\${{ matrix.target }}\release\local-search${{ matrix.binary-suffix }}" release\
+        copy README.md release\
+        copy LICENSE release\
+    
+    - name: Create archive (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        cd release
+        tar czf ../${{ matrix.archive-name }} *
+        cd ..
+        
+    - name: Create archive (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd release
+        7z a ../${{ matrix.archive-name }} *
+        cd ..
+    
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.archive-name }}
+        path: ${{ matrix.archive-name }}
+
   release:
-    name: Release
+    name: Create Release
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, clippy, fmt, build]
+    needs: [test, clippy, fmt, build, build-release-binaries]
     steps:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/local-search-linux-x86_64.tar.gz/local-search-linux-x86_64.tar.gz
+          artifacts/local-search-windows-x86_64.zip/local-search-windows-x86_64.zip
+          artifacts/local-search-macos-x86_64.tar.gz/local-search-macos-x86_64.tar.gz
+          artifacts/local-search-macos-aarch64.tar.gz/local-search-macos-aarch64.tar.gz
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## Installation Instructions
+
+          ### Linux (x86_64)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-linux-x86_64.tar.gz | tar xz
+          sudo mv local-search /usr/local/bin/
+          ```
+
+          ### macOS (Intel)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-macos-x86_64.tar.gz | tar xz
+          sudo mv local-search /usr/local/bin/
+          ```
+
+          ### macOS (Apple Silicon)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/latest/download/local-search-macos-aarch64.tar.gz | tar xz
+          sudo mv local-search /usr/local/bin/
+          ```
+
+          ### Windows
+          1. Download [local-search-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/latest/download/local-search-windows-x86_64.zip)
+          2. Extract the ZIP file
+          3. Add the extracted directory to your PATH environment variable
+
+          ### Verify Installation
+          ```bash
+          local-search --help
+          ```
+
     - name: Publish to crates.io
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: cargo publish
+
+  # New job to update 'latest' release
+  update-latest:
+    name: Update Latest Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [release]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Update latest release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: latest
+        files: |
+          artifacts/local-search-linux-x86_64.tar.gz/local-search-linux-x86_64.tar.gz
+          artifacts/local-search-windows-x86_64.zip/local-search-windows-x86_64.zip
+          artifacts/local-search-macos-x86_64.tar.gz/local-search-macos-x86_64.tar.gz
+          artifacts/local-search-macos-aarch64.tar.gz/local-search-macos-aarch64.tar.gz
+        draft: false
+        prerelease: false
+        body: |
+          This is the latest release. It is automatically updated when a new version is tagged.
+          
+          For installation instructions, see the [latest tagged release](https://github.com/${{ github.repository }}/releases/latest).
