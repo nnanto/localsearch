@@ -5,7 +5,7 @@ param(
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\local-search",
     
     [Parameter()]
-    [string]$GitHubRepo = "nnanto/local_search",
+    [string]$GitHubRepo = "nnanto/local-search",
     
     [Parameter()]
     [switch]$Help
@@ -34,7 +34,7 @@ function Show-Help {
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -InstallDir DIR     Installation directory (default: $env:LOCALAPPDATA\Programs\local-search)"
-    Write-Host "  -GitHubRepo REPO    GitHub repository (default: nnanto/local_search)"
+    Write-Host "  -GitHubRepo REPO    GitHub repository (default: nnanto/local-search)"
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"

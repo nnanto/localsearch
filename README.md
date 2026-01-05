@@ -15,40 +15,40 @@ A fast, local search engine built in Rust with vector embeddings and SQLite stor
 
 ### Linux/macOS
 ```bash
-curl -sSL https://raw.githubusercontent.com/nnanto/local_search/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/nnanto/local-search/main/scripts/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 ```powershell
-irm https://raw.githubusercontent.com/nnanto/local_search/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/nnanto/local-search/main/scripts/install.ps1 | iex
 ```
 
 ## Manual Installation
 
 ### Pre-built Binaries
 
-Download the appropriate binary for your platform from the [latest release](https://github.com/nnanto/local_search/releases/latest):
+Download the appropriate binary for your platform from the [latest release](https://github.com/nnanto/local-search/releases/latest):
 
 #### Linux (x86_64)
 ```bash
-curl -L https://github.com/nnanto/local_search/releases/latest/download/local-search-linux-x86_64.tar.gz | tar xz
+curl -L https://github.com/nnanto/local-search/releases/latest/download/local-search-linux-x86_64.tar.gz | tar xz
 sudo mv local-search /usr/local/bin/
 ```
 
 #### macOS (Intel)
 ```bash
-curl -L https://github.com/nnanto/local_search/releases/latest/download/local-search-macos-x86_64.tar.gz | tar xz
+curl -L https://github.com/nnanto/local-search/releases/latest/download/local-search-macos-x86_64.tar.gz | tar xz
 sudo mv local-search /usr/local/bin/
 ```
 
 #### macOS (Apple Silicon)
 ```bash
-curl -L https://github.com/nnanto/local_search/releases/latest/download/local-search-macos-aarch64.tar.gz | tar xz
+curl -L https://github.com/nnanto/local-search/releases/latest/download/local-search-macos-aarch64.tar.gz | tar xz
 sudo mv local-search /usr/local/bin/
 ```
 
 #### Windows
-1. Download [local-search-windows-x86_64.zip](https://github.com/nnanto/local_search/releases/latest/download/local-search-windows-x86_64.zip)
+1. Download [local-search-windows-x86_64.zip](https://github.com/nnanto/local-search/releases/latest/download/local-search-windows-x86_64.zip)
 2. Extract the ZIP file
 3. Add the extracted directory to your PATH environment variable
 
@@ -57,14 +57,14 @@ sudo mv local-search /usr/local/bin/
 If you have Rust installed, you can build from source:
 
 ```bash
-cargo install --git https://github.com/nnanto/local_search --features cli
+cargo install --git https://github.com/nnanto/local-search --features cli
 ```
 
 Or clone and build:
 
 ```bash
-git clone https://github.com/nnanto/local_search.git
-cd local_search
+git clone https://github.com/nnanto/local-search.git
+cd local-search
 cargo build --release --features cli
 sudo cp target/release/local-search /usr/local/bin/
 ```

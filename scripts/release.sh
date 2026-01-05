@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Release script for local_search
+# Release script for local-search
 
 set -e
 
@@ -55,5 +55,5 @@ git tag "v$VERSION"
 echo "Release v$VERSION prepared!"
 echo "Run 'git push origin main --tags' to publish the release"
 echo "Don't forget to:"
-echo "  1. Create a GitHub release at https://github.com/nnanto/local_search/releases/new"
+echo "  1. Create a GitHub release at https://github.com/nnanto/local-search/releases/new"
 echo "  2. Set up CARGO_REGISTRY_TOKEN secret in GitHub for automatic publishing"

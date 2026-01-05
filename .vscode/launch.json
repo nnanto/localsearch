@@ -8,12 +8,12 @@
         "type": "lldb",
         "request": "launch",
         "name": "Launch",
-        "program": "${workspaceFolder}/target/debug/local_search_engine",
+        "program": "${workspaceFolder}/target/debug/local-search_engine",
         "args": [],
         "cwd": "${workspaceFolder}"
     },
         {
-            "name": "Debug unit tests in library 'local_search_engine'",
+            "name": "Debug unit tests in library 'local-search_engine'",
             "type": "lldb",
             "request": "launch",
             "cargo": {
@@ -23,25 +23,25 @@
             }
         },
         {
-            "name": "Debug executable 'local_search_engine'",
+            "name": "Debug executable 'local-search_engine'",
             "type": "lldb",
             "request": "launch",
             "cargo": {
                 "args": [
                     "run",
-                    "--bin=local_search_engine"
+                    "--bin=local-search_engine"
                 ]
             },
             "args": []
         },
         {
-            "name": "Debug unit tests in executable 'local_search_engine'",
+            "name": "Debug unit tests in executable 'local-search_engine'",
             "type": "lldb",
             "request": "launch",
             "cargo": {
                 "args": [
                     "test",
-                    "--bin=local_search_engine"
+                    "--bin=local-search_engine"
                 ]
             }
         },
