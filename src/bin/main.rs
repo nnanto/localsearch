@@ -8,6 +8,7 @@ use crate::util::ingest::IngestionResult;
 
 #[derive(Parser)]
 #[command(name = "local-search")]
+#[command(version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
