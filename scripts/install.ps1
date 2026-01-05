@@ -1,103 +1,145 @@
-# Installation Guide
+#Requires -Version 5.0
 
-## Quick Install
+param(
+    [Parameter()]
+    [string]$InstallDir = "$env:LOCALAPPDATA\Programs\local-search",
+    
+    [Parameter()]
+    [string]$GitHubRepo = "nnanto/local_search",
+    
+    [Parameter()]
+    [switch]$Help
+)
 
-### Linux/macOS
-```bash
-curl -sSL https://raw.githubusercontent.com/nnanto/local_search/main/install.sh | bash
-```
+# Color functions
+function Write-Status {
+    param([string]$Message)
+    Write-Host "[INFO] $Message" -ForegroundColor Green
+}
 
-### Windows (PowerShell)
-```powershell
-irm https://raw.githubusercontent.com/nnanto/local_search/main/install.ps1 | iex
-```
+function Write-Warning {
+    param([string]$Message)
+    Write-Host "[WARN] $Message" -ForegroundColor Yellow
+}
 
-## Manual Installation
+function Write-Error {
+    param([string]$Message)
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
+}
 
-### Pre-built Binaries
+function Show-Help {
+    Write-Host "local-search Installation Script for Windows"
+    Write-Host ""
+    Write-Host "Usage: .\install.ps1 [OPTIONS]"
+    Write-Host ""
+    Write-Host "Options:"
+    Write-Host "  -InstallDir DIR     Installation directory (default: $env:LOCALAPPDATA\Programs\local-search)"
+    Write-Host "  -GitHubRepo REPO    GitHub repository (default: nnanto/local_search)"
+    Write-Host "  -Help               Show this help message"
+    Write-Host ""
+    Write-Host "Examples:"
+    Write-Host "  .\install.ps1"
+    Write-Host "  .\install.ps1 -InstallDir 'C:\Tools\local-search'"
+}
 
-Download the appropriate binary for your platform from the [latest release](https://github.com/nnanto/local_search/releases/latest):
+function Test-Administrator {
+    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
 
-#### Linux (x86_64)
-```bash
-curl -L https://github.com/nnanto/local_search/releases/latest/download/local-search-linux-x86_64.tar.gz | tar xz
-sudo mv local-search /usr/local/bin/
-```
+function Add-ToPath {
+    param([string]$Directory)
+    
+    $currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if ($currentPath -split ';' -notcontains $Directory) {
+        Write-Status "Adding $Directory to PATH..."
+        [Environment]::SetEnvironmentVariable("Path", "$currentPath;$Directory", "User")
+        $env:Path = "$env:Path;$Directory"
+        Write-Status "Added to PATH. You may need to restart your terminal."
+    } else {
+        Write-Status "$Directory is already in PATH."
+    }
+}
 
-#### macOS (Intel)
-```bash
-curl -L https://github.com/nnanto/local_search/releases/latest/download/local-search-macos-x86_64.tar.gz | tar xz
-sudo mv local-search /usr/local/bin/
-```
+function Install-LocalSearch {
+    $archiveName = "local-search-windows-x86_64.zip"
+    $downloadUrl = "https://github.com/$GitHubRepo/releases/latest/download/$archiveName"
+    
+    Write-Status "Download URL: $downloadUrl"
+    
+    # Create temporary directory
+    $tmpDir = Join-Path $env:TEMP ([System.Guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
+    
+    try {
+        # Download archive
+        $archivePath = Join-Path $tmpDir $archiveName
+        Write-Status "Downloading local-search..."
+        
+        try {
+            Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath -UseBasicParsing
+        } catch {
+            Write-Error "Failed to download local-search: $_"
+            return $false
+        }
+        
+        # Extract archive
+        Write-Status "Extracting archive..."
+        try {
+            Expand-Archive -Path $archivePath -DestinationPath $tmpDir -Force
+        } catch {
+            Write-Error "Failed to extract archive: $_"
+            return $false
+        }
+        
+        # Create install directory
+        if (!(Test-Path $InstallDir)) {
+            Write-Status "Creating installation directory: $InstallDir"
+            New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+        }
+        
+        # Copy binary
+        $binaryPath = Join-Path $tmpDir "local-search.exe"
+        $targetPath = Join-Path $InstallDir "local-search.exe"
+        
+        if (!(Test-Path $binaryPath)) {
+            Write-Error "Binary not found in extracted archive"
+            return $false
+        }
+        
+        Write-Status "Installing to $InstallDir..."
+        Copy-Item -Path $binaryPath -Destination $targetPath -Force
+        
+        # Add to PATH
+        Add-ToPath -Directory $InstallDir
+        
+        Write-Status "local-search installed successfully!"
+        Write-Status "Try running: local-search --help"
+        
+        return $true
+        
+    } finally {
+        # Cleanup
+        if (Test-Path $tmpDir) {
+            Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
 
-#### macOS (Apple Silicon)
-```bash
-curl -L https://github.com/nnanto/local_search/releases/latest/download/local-search-macos-aarch64.tar.gz | tar xz
-sudo mv local-search /usr/local/bin/
-```
+# Main script logic
+if ($Help) {
+    Show-Help
+    exit 0
+}
 
-#### Windows
-1. Download [local-search-windows-x86_64.zip](https://github.com/nnanto/local_search/releases/latest/download/local-search-windows-x86_64.zip)
-2. Extract the ZIP file
-3. Add the extracted directory to your PATH environment variable
+Write-Status "Installing local-search CLI tool..."
+Write-Status "Installation directory: $InstallDir"
+Write-Status "GitHub repository: $GitHubRepo"
 
-### From Source
-
-If you have Rust installed, you can build from source:
-
-```bash
-cargo install --git https://github.com/nnanto/local_search --features cli
-```
-
-Or clone and build:
-
-```bash
-git clone https://github.com/nnanto/local_search.git
-cd local_search
-cargo build --release --features cli
-sudo cp target/release/local-search /usr/local/bin/
-```
-
-## Verify Installation
-
-After installation, verify that the tool is working:
-
-```bash
-local-search --help
-```
-
-You should see the help output for the local-search CLI tool.
-
-## Updating
-
-To update to the latest version, simply re-run the installation command. The installer will replace the existing binary with the latest version.
-
-## Uninstallation
-
-### Linux/macOS
-```bash
-sudo rm /usr/local/bin/local-search
-```
-
-### Windows
-Remove the installation directory and update your PATH environment variable to remove the local-search directory.
-
-## Troubleshooting
-
-### Permission Issues
-If you get permission errors on Linux/macOS, make sure you're running the installation with appropriate permissions (using `sudo` when needed).
-
-### Path Issues
-If the `local-search` command is not found after installation, make sure the installation directory is in your PATH:
-
-- **Linux/macOS**: `/usr/local/bin` should be in your PATH
-- **Windows**: The installation directory should be added to your PATH environment variable
-
-### Download Issues
-If you're having trouble downloading the binary, you can:
-1. Check your internet connection
-2. Try downloading manually from the [releases page](https://github.com/nnanto/local_search/releases/latest)
-3. Use a VPN if you're in a region with restricted access
-
-### Antivirus False Positives
-Some antivirus software may flag the binary as suspicious. This is a common issue with Rust binaries. You may need to add an exception for the local-search binary.
+if (Install-LocalSearch) {
+    Write-Status "Installation completed successfully!"
+} else {
+    Write-Error "Installation failed!"
+    exit 1
+}
