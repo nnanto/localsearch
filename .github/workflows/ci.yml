@@ -201,6 +201,18 @@ jobs:
           localsearch --help
           ```
           
+    - name: Update Homebrew formula
+      if: success()
+      uses: dawidd6/action-homebrew-bump-formula@v3
+      with:
+        token: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
+        formula: localsearch
+        tap: nnanto/homebrew-tools
+        tag: ${{ github.ref_name }}
+        revision: ${{ github.sha }}
+        force: false
+      continue-on-error: true
+          
     - name: Update latest release
       uses: softprops/action-gh-release@v2
       with:
