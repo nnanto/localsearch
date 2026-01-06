@@ -161,6 +161,7 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ github.ref_name }}
         files: |
           artifacts/localsearch-linux-x86_64.tar.gz/localsearch-linux-x86_64.tar.gz
           artifacts/localsearch-windows-x86_64.zip/localsearch-windows-x86_64.zip
@@ -169,32 +170,49 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: true
+        make_latest: true
         token: ${{ secrets.GITHUB_TOKEN }}
         body: |
           ## Installation Instructions
 
           ### Linux (x86_64)
           ```bash
+          # Version-specific download
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-linux-x86_64.tar.gz | tar xz
+          sudo mv localsearch /usr/local/bin/
+          
+          # Or use latest
           curl -L https://github.com/${{ github.repository }}/releases/latest/download/localsearch-linux-x86_64.tar.gz | tar xz
           sudo mv localsearch /usr/local/bin/
           ```
 
           ### macOS (Intel)
           ```bash
+          # Version-specific download
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-macos-x86_64.tar.gz | tar xz
+          sudo mv localsearch /usr/local/bin/
+          
+          # Or use latest
           curl -L https://github.com/${{ github.repository }}/releases/latest/download/localsearch-macos-x86_64.tar.gz | tar xz
           sudo mv localsearch /usr/local/bin/
           ```
 
           ### macOS (Apple Silicon)
           ```bash
+          # Version-specific download
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-macos-aarch64.tar.gz | tar xz
+          sudo mv localsearch /usr/local/bin/
+          
+          # Or use latest
           curl -L https://github.com/${{ github.repository }}/releases/latest/download/localsearch-macos-aarch64.tar.gz | tar xz
           sudo mv localsearch /usr/local/bin/
           ```
 
           ### Windows
-          1. Download [localsearch-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/latest/download/localsearch-windows-x86_64.zip)
-          2. Extract the ZIP file
-          3. Add the extracted directory to your PATH environment variable
+          1. Download version-specific: [localsearch-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-windows-x86_64.zip)
+          2. Or download latest: [localsearch-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/latest/download/localsearch-windows-x86_64.zip)
+          3. Extract the ZIP file
+          4. Add the extracted directory to your PATH environment variable
 
           ### Verify Installation
           ```bash
@@ -212,46 +230,3 @@ jobs:
         revision: ${{ github.sha }}
         force: false
       continue-on-error: true
-          
-    - name: Update latest release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: latest
-        token: ${{ secrets.GITHUB_TOKEN }}
-        files: |
-          artifacts/localsearch-linux-x86_64.tar.gz/localsearch-linux-x86_64.tar.gz
-          artifacts/localsearch-windows-x86_64.zip/localsearch-windows-x86_64.zip
-          artifacts/localsearch-macos-x86_64.tar.gz/localsearch-macos-x86_64.tar.gz
-          artifacts/localsearch-macos-aarch64.tar.gz/localsearch-macos-aarch64.tar.gz
-        draft: false
-        prerelease: false
-        body: |
-          ## Installation Instructions
-
-          ### Linux (x86_64)
-          ```bash
-          curl -L https://github.com/${{ github.repository }}/releases/latest/download/localsearch-linux-x86_64.tar.gz | tar xz
-          sudo mv localsearch /usr/local/bin/
-          ```
-
-          ### macOS (Intel)
-          ```bash
-          curl -L https://github.com/${{ github.repository }}/releases/latest/download/localsearch-macos-x86_64.tar.gz | tar xz
-          sudo mv localsearch /usr/local/bin/
-          ```
-
-          ### macOS (Apple Silicon)
-          ```bash
-          curl -L https://github.com/${{ github.repository }}/releases/latest/download/localsearch-macos-aarch64.tar.gz | tar xz
-          sudo mv localsearch /usr/local/bin/
-          ```
-
-          ### Windows
-          1. Download [localsearch-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/latest/download/localsearch-windows-x86_64.zip)
-          2. Extract the ZIP file
-          3. Add the extracted directory to your PATH environment variable
-
-          ### Verify Installation
-          ```bash
-          localsearch --help
-          ```
