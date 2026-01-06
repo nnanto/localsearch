@@ -153,6 +153,10 @@ jobs:
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
     
+    - name: Extract version
+      id: version
+      run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+    
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
@@ -178,7 +182,7 @@ jobs:
           ### Linux (x86_64)
           ```bash
           # Version-specific download
-          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-linux-x86_64.tar.gz | tar xz
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/localsearch-linux-x86_64.tar.gz | tar xz
           sudo mv localsearch /usr/local/bin/
           
           # Or use latest
@@ -189,7 +193,7 @@ jobs:
           ### macOS (Intel)
           ```bash
           # Version-specific download
-          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-macos-x86_64.tar.gz | tar xz
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/localsearch-macos-x86_64.tar.gz | tar xz
           sudo mv localsearch /usr/local/bin/
           
           # Or use latest
@@ -200,7 +204,7 @@ jobs:
           ### macOS (Apple Silicon)
           ```bash
           # Version-specific download
-          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-macos-aarch64.tar.gz | tar xz
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/localsearch-macos-aarch64.tar.gz | tar xz
           sudo mv localsearch /usr/local/bin/
           
           # Or use latest
@@ -209,7 +213,7 @@ jobs:
           ```
 
           ### Windows
-          1. Download version-specific: [localsearch-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/localsearch-windows-x86_64.zip)
+          1. Download version-specific: [localsearch-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/localsearch-windows-x86_64.zip)
           2. Or download latest: [localsearch-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/latest/download/localsearch-windows-x86_64.zip)
           3. Extract the ZIP file
           4. Add the extracted directory to your PATH environment variable
@@ -226,7 +230,7 @@ jobs:
         token: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
         formula: localsearch
         tap: nnanto/homebrew-tools
-        tag: ${{ github.ref_name }}
+        tag: ${{ steps.version.outputs.version }}
         revision: ${{ github.sha }}
         force: false
       continue-on-error: true
