@@ -111,23 +111,79 @@ Some antivirus software may flag the binary as suspicious. This is a common issu
 
 ## CLI Usage
 
+### Basic Commands
+
 ```bash
-# Index documents
+# Index documents (uses system default directories)
 localsearch index /path/to/documents
 
 # Search for content
 localsearch search "your query here"
 ```
 
+### Directory Configuration
+
+By default, `localsearch` uses system-appropriate directories:
+- **Cache**: Model files are stored in the system cache directory (e.g., `~/.cache` on Linux, `~/Library/Caches` on macOS)
+- **Database**: SQLite database is stored in the application data directory (e.g., `~/.local/share` on Linux, `~/Library/Application Support` on macOS)
+
+You can override these defaults:
+
+```bash
+# Use custom database location
+localsearch index /path/to/documents --db /custom/path/to/database.db
+
+# Use custom cache directory for embeddings
+localsearch index /path/to/documents --cache-dir /custom/cache/path
+
+# Use both custom paths
+localsearch index /path/to/documents --db /custom/db.db --cache-dir /custom/cache
+
+# Search with custom paths
+localsearch search "query" --db /custom/db.db --cache-dir /custom/cache
+```
+
+### File Types
+
+```bash
+# Index JSON files (default)
+localsearch index data.json --file-type json
+
+# Index text files
+localsearch index /path/to/text/files --file-type text
+```
+
+### Search Options
+
+```bash
+# Different search types
+localsearch search "query" --search-type semantic
+localsearch search "query" --search-type fulltext  
+localsearch search "query" --search-type hybrid    # default
+
+# Limit results
+localsearch search "query" --limit 5
+
+# Pretty output
+localsearch search "query" --pretty
+```
+
 ## Library Usage
 
 ```rust
-use localsearch::{SqliteLocalSearchEngine, LocalEmbedder, DocumentIndexer, LocalSearch, SearchType, DocumentRequest};
+use localsearch::{SqliteLocalSearchEngine, LocalEmbedder, DocumentIndexer, LocalSearch, SearchType, DocumentRequest, LocalSearchDirs};
 
 fn main() -> anyhow::Result<()> {
-    // Create embedder and search engine
+    // Option 1: Use default system directories
+    let dirs = LocalSearchDirs::new();
+    let db_path = dirs.default_db_path();
     let embedder = LocalEmbedder::new_with_default_model()?;
-    let mut engine = SqliteLocalSearchEngine::new("search.db", Some(embedder))?;
+    
+    // Option 2: Use custom cache directory
+    // let custom_cache = std::path::PathBuf::from("/custom/cache");
+    // let embedder = LocalEmbedder::new_with_cache_dir(custom_cache)?;
+    
+    let mut engine = SqliteLocalSearchEngine::new(&db_path.to_string_lossy(), Some(embedder))?;
 
     // Index a document
     engine.insert_document(DocumentRequest {

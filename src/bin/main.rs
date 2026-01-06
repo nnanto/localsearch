@@ -1,8 +1,9 @@
 mod util;
 
 use clap::{Parser, Subcommand};
-use localsearch::{LocalEmbedder, LocalSearch, SearchType, SqliteLocalSearchEngine};
+use localsearch::{LocalEmbedder, LocalSearch, SearchType, SqliteLocalSearchEngine, LocalSearchDirs};
 use util::{JsonFileIngestor, RawFileIngestor};
+use std::path::PathBuf;
 
 use crate::util::ingest::IngestionResult;
 
@@ -22,13 +23,18 @@ enum Commands {
     Index {
         /// Path to directory or file to index
         path: String,
-        /// Database file path (default: ./.localsearch.db)
+        /// Database file path (uses project data directory by default)
         #[clap(
             long,
-            default_value = "./.localsearch.db",
-            help = "Path to the SQLite database file."
+            help = "Path to the SQLite database file. If not specified, uses the project data directory."
         )]
-        db: String,
+        db: Option<String>,
+        /// Cache directory for embedding models (uses project cache directory by default)
+        #[clap(
+            long,
+            help = "Path to the cache directory for embedding models. If not specified, uses the project cache directory."
+        )]
+        cache_dir: Option<PathBuf>,
         /// File type filter: json, text
         #[clap(
             long,
@@ -41,13 +47,18 @@ enum Commands {
     Search {
         /// Search query
         query: String,
-        /// Database file path (default: ./.localsearch.db)
+        /// Database file path (uses project data directory by default)
         #[clap(
             long,
-            default_value = "./.localsearch.db",
-            help = "Path to the SQLite database file that was indexed."
+            help = "Path to the SQLite database file that was indexed. If not specified, uses the project data directory."
         )]
-        db: String,
+        db: Option<String>,
+        /// Cache directory for embedding models (uses project cache directory by default)
+        #[clap(
+            long,
+            help = "Path to the cache directory for embedding models. If not specified, uses the project cache directory."
+        )]
+        cache_dir: Option<PathBuf>,
         /// Search type: fulltext, semantic, or hybrid
         #[clap(
             long,
@@ -81,6 +92,17 @@ fn validate_db_presence(db_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn get_database_path(db_option: Option<String>) -> anyhow::Result<String> {
+    match db_option {
+        Some(path) => Ok(path),
+        None => {
+            let dirs = LocalSearchDirs::new();
+            dirs.ensure_db_dir()?;
+            Ok(dirs.default_db_path().to_string_lossy().to_string())
+        }
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     env_logger::Builder::new()
@@ -91,16 +113,23 @@ fn main() -> anyhow::Result<()> {
         Commands::Index {
             path,
             db,
+            cache_dir,
             file_type,
         } => {
+            let db_path = get_database_path(db)?;
             println!(
                 "Indexing documents from: {} and storing in database: {}",
-                path, db
+                path, db_path
             );
 
+            // Initialize the embedder with optional cache directory
+            let embedder = match cache_dir {
+                Some(cache_path) => LocalEmbedder::new_with_cache_dir(cache_path)?,
+                None => LocalEmbedder::new_with_default_model()?,
+            };
+            
             // Initialize the search engine
-            let embedder = LocalEmbedder::new_with_default_model()?;
-            let engine = SqliteLocalSearchEngine::new(&db, Some(embedder))?;
+            let engine = SqliteLocalSearchEngine::new(&db_path, Some(embedder))?;
             engine.create_table()?;
             let boxed_engine = Box::new(engine);
 
@@ -160,6 +189,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Search {
             query,
             db,
+            cache_dir,
             search_type,
             limit,
             pretty,
@@ -167,10 +197,18 @@ fn main() -> anyhow::Result<()> {
             if pretty {
                 println!("Searching for: \"{}\"", query);
             }
-            validate_db_presence(&db)?;
+            
+            let db_path = get_database_path(db)?;
+            validate_db_presence(&db_path)?;
+            
+            // Initialize the embedder with optional cache directory
+            let embedder = match cache_dir {
+                Some(cache_path) => LocalEmbedder::new_with_cache_dir(cache_path)?,
+                None => LocalEmbedder::new_with_default_model()?,
+            };
+            
             // Initialize the search engine
-            let embedder = LocalEmbedder::new_with_default_model()?;
-            let engine = SqliteLocalSearchEngine::new(&db, Some(embedder))?;
+            let engine = SqliteLocalSearchEngine::new(&db_path, Some(embedder))?;
 
             // Parse search type
             let search_type_enum = match search_type.as_str() {

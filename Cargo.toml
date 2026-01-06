@@ -19,6 +19,7 @@ rusqlite = {"version" = "0.38.0", features = ["bundled"]}
 fastembed = { version = "4.9.1", default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 anyhow = "1.0.100"
 serde = { version = "1.0", features = ["derive"] }
+directories = "5.0"
 serde_json = { version = "1.0"}
 
 # CLI-only dependencies (optional)
