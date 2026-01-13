@@ -183,6 +183,11 @@ fn main() -> anyhow::Result<()> {
     // let custom_cache = std::path::PathBuf::from("/custom/cache");
     // let embedder = LocalEmbedder::new_with_cache_dir(custom_cache)?;
     
+    // Option 3: Use your own local ONNX model and tokenizer
+    // let onnx_path = std::path::PathBuf::from("/path/to/your/model.onnx");
+    // let tokenizer_dir = std::path::PathBuf::from("/path/to/tokenizer/files");
+    // let embedder = LocalEmbedder::new_with_local_model(onnx_path, tokenizer_dir, Some(512))?;
+    
     let mut engine = SqliteLocalSearchEngine::new(&db_path.to_string_lossy(), Some(embedder))?;
 
     // Index a document
@@ -197,6 +202,46 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 ```
+
+### Using Local ONNX Models
+
+You can now use your own local ONNX embedding models instead of the default pre-built models:
+
+```rust
+use localsearch::LocalEmbedder;
+use std::path::PathBuf;
+
+// Method 1: Using a tokenizer directory
+// Your tokenizer directory should contain:
+// - tokenizer.json
+// - config.json
+// - special_tokens_map.json
+// - tokenizer_config.json
+let onnx_path = PathBuf::from("/path/to/your/model.onnx");
+let tokenizer_dir = PathBuf::from("/path/to/tokenizer/directory");
+let embedder = LocalEmbedder::new_with_local_model(onnx_path, tokenizer_dir, Some(512))?;
+
+// Method 2: Using individual file paths
+let embedder = LocalEmbedder::new_with_local_files(
+    PathBuf::from("/path/to/model.onnx"),
+    PathBuf::from("/path/to/tokenizer.json"),
+    PathBuf::from("/path/to/config.json"),
+    PathBuf::from("/path/to/special_tokens_map.json"),
+    PathBuf::from("/path/to/tokenizer_config.json"),
+    Some(512) // max_length
+)?;
+```
+
+**Required Files for Local Models:**
+
+1. **ONNX Model File**: Your embedding model in ONNX format (`.onnx`)
+2. **Tokenizer Files**: Four JSON files typically found with transformer models:
+   - `tokenizer.json` - Main tokenizer configuration
+   - `config.json` - Model configuration
+   - `special_tokens_map.json` - Special token mappings
+   - `tokenizer_config.json` - Tokenizer-specific configuration
+
+These files are commonly found in HuggingFace model repositories or can be exported when converting models to ONNX format.
 
 ## Development
 
