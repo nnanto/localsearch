@@ -143,6 +143,33 @@ localsearch index /path/to/documents --db /custom/db.db --cache-dir /custom/cach
 localsearch search "query" --db /custom/db.db --cache-dir /custom/cache
 ```
 
+### Using Local ONNX Models (CLI)
+
+You can use your own local ONNX embedding models instead of the default pre-built models:
+
+```bash
+# Index with local model
+localsearch index /path/to/documents \
+  --local-model-path /path/to/your/model.onnx \
+  --tokenizer-dir /path/to/tokenizer/directory \
+  --max-tokens 512
+
+# Search with local model
+localsearch search "your query" \
+  --local-model-path /path/to/your/model.onnx \
+  --tokenizer-dir /path/to/tokenizer/directory \
+  --max-tokens 512
+```
+
+**Required for local models:**
+- `--local-model-path`: Path to your ONNX model file
+- `--tokenizer-dir`: Directory containing:
+  - `tokenizer.json`
+  - `config.json`
+  - `special_tokens_map.json`  
+  - `tokenizer_config.json`
+- `--max-tokens`: (Optional) Maximum number of tokens (default: 512)
+
 ### File Types
 
 ```bash

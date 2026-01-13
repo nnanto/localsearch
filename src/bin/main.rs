@@ -37,6 +37,24 @@ enum Commands {
             help = "Path to the cache directory for embedding models. If not specified, uses the project cache directory."
         )]
         cache_dir: Option<PathBuf>,
+        /// Path to local ONNX model file
+        #[clap(
+            long,
+            help = "Path to a local ONNX embedding model file. When specified, --tokenizer-dir must also be provided."
+        )]
+        local_model_path: Option<PathBuf>,
+        /// Path to tokenizer directory containing tokenizer files
+        #[clap(
+            long,
+            help = "Path to directory containing tokenizer files (tokenizer.json, config.json, special_tokens_map.json, tokenizer_config.json). Required when --local-model-path is used."
+        )]
+        tokenizer_dir: Option<PathBuf>,
+        /// Maximum sequence length for local model
+        #[clap(
+            long,
+            help = "Maximum number of tokens for the local model (default: 512). Only used with --local-model-path."
+        )]
+        max_tokens: Option<usize>,
         /// File type filter: json, text
         #[clap(
             long,
@@ -61,6 +79,24 @@ enum Commands {
             help = "Path to the cache directory for embedding models. If not specified, uses the project cache directory."
         )]
         cache_dir: Option<PathBuf>,
+        /// Path to local ONNX model file
+        #[clap(
+            long,
+            help = "Path to a local ONNX embedding model file. When specified, --tokenizer-dir must also be provided."
+        )]
+        local_model_path: Option<PathBuf>,
+        /// Path to tokenizer directory containing tokenizer files
+        #[clap(
+            long,
+            help = "Path to directory containing tokenizer files (tokenizer.json, config.json, special_tokens_map.json, tokenizer_config.json). Required when --local-model-path is used."
+        )]
+        tokenizer_dir: Option<PathBuf>,
+        /// Maximum sequence length for local model
+        #[clap(
+            long,
+            help = "Maximum number of tokens for the local model (default: 512). Only used with --local-model-path."
+        )]
+        max_tokens: Option<usize>,
         /// Search type: fulltext, semantic, or hybrid
         #[clap(
             long,
@@ -105,6 +141,46 @@ fn get_database_path(db_option: Option<String>) -> anyhow::Result<String> {
     }
 }
 
+fn create_embedder(
+    cache_dir: Option<PathBuf>,
+    local_model_path: Option<PathBuf>,
+    tokenizer_dir: Option<PathBuf>,
+    max_tokens: Option<usize>,
+) -> anyhow::Result<LocalEmbedder> {
+    // Check if local model options are provided
+    match (local_model_path, tokenizer_dir) {
+        (Some(model_path), Some(tokenizer_path)) => {
+            // Use local model
+            println!("Using local ONNX model: {:?}", model_path);
+            println!("Using tokenizer directory: {:?}", tokenizer_path);
+            LocalEmbedder::new_with_local_model(model_path, tokenizer_path, max_tokens)
+        }
+        (Some(_), None) => {
+            Err(anyhow::anyhow!(
+                "--tokenizer-dir must be specified when using --local-model-path"
+            ))
+        }
+        (None, Some(_)) => {
+            Err(anyhow::anyhow!(
+                "--local-model-path must be specified when using --tokenizer-dir"
+            ))
+        }
+        (None, None) => {
+            // Use default or cache directory model
+            match cache_dir {
+                Some(cache_path) => {
+                    println!("Using pre-built model with cache directory: {:?}", cache_path);
+                    LocalEmbedder::new_with_cache_dir(cache_path)
+                }
+                None => {
+                    println!("Using default pre-built model");
+                    LocalEmbedder::new_with_default_model()
+                }
+            }
+        }
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     env_logger::Builder::new()
@@ -116,6 +192,9 @@ fn main() -> anyhow::Result<()> {
             path,
             db,
             cache_dir,
+            local_model_path,
+            tokenizer_dir,
+            max_tokens,
             file_type,
         } => {
             let db_path = get_database_path(db)?;
@@ -124,11 +203,8 @@ fn main() -> anyhow::Result<()> {
                 path, db_path
             );
 
-            // Initialize the embedder with optional cache directory
-            let embedder = match cache_dir {
-                Some(cache_path) => LocalEmbedder::new_with_cache_dir(cache_path)?,
-                None => LocalEmbedder::new_with_default_model()?,
-            };
+            // Initialize the embedder with all options
+            let embedder = create_embedder(cache_dir, local_model_path, tokenizer_dir, max_tokens)?;
 
             // Initialize the search engine
             let engine = SqliteLocalSearchEngine::new(&db_path, Some(embedder))?;
@@ -192,6 +268,9 @@ fn main() -> anyhow::Result<()> {
             query,
             db,
             cache_dir,
+            local_model_path,
+            tokenizer_dir,
+            max_tokens,
             search_type,
             limit,
             pretty,
@@ -203,11 +282,8 @@ fn main() -> anyhow::Result<()> {
             let db_path = get_database_path(db)?;
             validate_db_presence(&db_path)?;
 
-            // Initialize the embedder with optional cache directory
-            let embedder = match cache_dir {
-                Some(cache_path) => LocalEmbedder::new_with_cache_dir(cache_path)?,
-                None => LocalEmbedder::new_with_default_model()?,
-            };
+            // Initialize the embedder with all options
+            let embedder = create_embedder(cache_dir, local_model_path, tokenizer_dir, max_tokens)?;
 
             // Initialize the search engine
             let engine = SqliteLocalSearchEngine::new(&db_path, Some(embedder))?;
