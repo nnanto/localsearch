@@ -308,7 +308,12 @@ fn main() -> anyhow::Result<()> {
                     .filter(|s| !s.is_empty())
                     .collect::<Vec<String>>()
             });
-            let results = engine.search(&query, search_type_enum, Some(limit as i8), path_filters.as_deref())?;
+            let results = engine.search(
+                &query,
+                search_type_enum,
+                Some(limit as i8),
+                path_filters.as_deref(),
+            )?;
 
             if !pretty {
                 // Output as JSON

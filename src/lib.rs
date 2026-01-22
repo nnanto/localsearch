@@ -44,7 +44,7 @@
 //!
 //! // Search
 //! let results = engine.search("example", SearchType::Hybrid, Some(10), None)?;
-//! 
+//!
 //! // Search with path filters (multiple patterns supported)
 //! let filters = vec!["src".to_string(), "test".to_string()];
 //! let filtered_results = engine.search("example", SearchType::Hybrid, Some(10), Some(&filters))?;
